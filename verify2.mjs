@@ -1,14 +1,13 @@
 // Re-renders guilds on the live site and diffs every cell against our computed dataset.
-import { chromium } from 'playwright-core';
+import { launch } from './browser.mjs';
 import fs from 'node:fs';
 const SERVER = process.env.SERVER || 'bera-2';
 const ds = JSON.parse(fs.readFileSync(`dataset-${SERVER}.json`, 'utf8'));
 const GUILDS = (process.env.GUILDS || '').split(',').filter(Boolean);
-const EXE = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 const TABS = { conquest:'Guild Conquest', worldBoss:'World Boss', guildWar:'Guild War',
                guildBossBattle:'Guild Boss Battle', trainingGround:'Training Ground' };
 
-const b = await chromium.launch({ headless: true, executablePath: EXE });
+const b = await launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 1000 } });
 let checked = 0; const bad = [];
 

@@ -1,9 +1,8 @@
 // Checks derived guild totals: total CP against the site's own guild page, and conquest
 // totals against the site's per-guild conquest tab.
-import { chromium } from 'playwright-core';
+import { launch } from './browser.mjs';
 import fs from 'node:fs';
-const EXE = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
-const b = await chromium.launch({ headless: true, executablePath: EXE });
+const b = await launch();
 const p = await b.newPage();
 for (const [server, names] of [['bera-2',['Westhelm','Degens','Riot']], ['bera-1',['Snooze','Casino','Petal']]]) {
   const ds = JSON.parse(fs.readFileSync(`dataset-${server}.json`,'utf8'));

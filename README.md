@@ -58,6 +58,20 @@ Per-content ranks and totals for the other four contents are in `dataset-*.json`
 Both tables sort on every column, independently of each other: click a header to sort, click
 again to reverse. Ties fall back to CP rank.
 
+## Weekly refresh
+
+`.github/workflows/refresh.yml` re-runs the whole pipeline every Monday and pushes only if the
+data moved. `workflow_dispatch` runs it on demand, with inputs for guild depth and for skipping
+the verification step.
+
+The fragile part is mapleidle.gg's Vercel challenge, so the job defends in depth: each script
+retries its own requests, each scrape step retries as a whole, the browser is cached so a run
+never hinges on a CDN download, and `check-build.mjs` opens the built page and fails the job if
+it is broken. Nothing is committed unless scrape, build, verify and check all pass — a bad run
+leaves the published page untouched rather than replacing it with something worse.
+
+    npm run refresh     # the same sequence, locally
+
 ## Verification
 
 `build.mjs` is a direct port of the site's client-side function. `verify2.mjs` re-renders

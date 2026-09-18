@@ -1,0 +1,105 @@
+name: Refresh data
+
+on:
+  schedule:
+    # Mondays 11:17 UTC (about 4am Pacific). Offset minute so we are not in the
+    # crowd that GitHub delays at the top of the hour.
+    - cron: '17 11 * * 1'
+  workflow_dispatch:
+    inputs:
+      top:
+        description: 'Guilds per server'
+        default: '50'
+      skip_verify:
+        description: 'Skip the live-site verification step'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TOP: ${{ github.event.inputs.top || '50' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Cache the browser so a weekly run does not depend on a fresh CDN download.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # mapleidle.gg sits behind a Vercel JS challenge. Each script retries on its own;
+      # a whole-step retry covers the case where the challenge blocks a run outright.
+      - name: Scrape Bera 1
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 120
+          command: SERVER=bera-1 TOP=$TOP node scrape.mjs
+
+      - name: Scrape Bera 2
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 120
+          command: SERVER=bera-2 TOP=$TOP node scrape.mjs
+
+      - name: Build page
+        run: |
+          SERVER=bera-1 node build.mjs
+          SERVER=bera-2 node build.mjs
+          node pack.mjs
+          node make.mjs
+
+      # Diffs our computed percentages against the site's own rendered tables. If this
+      # fails the site changed its math and we must not publish, so the job stops here.
+      - name: Verify against the live site
+        if: ${{ github.event.inputs.skip_verify != 'true' }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 12
+          max_attempts: 2
+          retry_wait_seconds: 60
+          command: |
+            SERVER=bera-1 GUILDS=Snooze,Grace node verify2.mjs
+            SERVER=bera-2 GUILDS=Westhelm,Degens node verify2.mjs
+
+      - name: Sanity-check the built page
+        run: node check-build.mjs
+
+      - name: Commit and push if the data moved
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.html packed.json dataset-*.json; then
+            echo "No change in the published data; leaving the repo alone."
+            exit 0
+          fi
+          git add -A
+          git commit -m "Refresh guild data ($(date -u +%Y-%m-%d))" \
+                     -m "Automated weekly scrape of the Bera 1 and Bera 2 top 50."
+          git push

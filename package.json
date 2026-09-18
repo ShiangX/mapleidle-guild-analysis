@@ -8,9 +8,14 @@
   "scripts": {
     "scrape": "SERVER=bera-1 node scrape.mjs && SERVER=bera-2 node scrape.mjs",
     "build": "SERVER=bera-1 node build.mjs && SERVER=bera-2 node build.mjs && node pack.mjs && node make.mjs",
-    "verify": "SERVER=bera-2 GUILDS=Westhelm,Degens,Riot node verify2.mjs && SERVER=bera-1 GUILDS=Snooze,Casino,Petal node verify2.mjs && node verify3.mjs"
+    "check": "node check-build.mjs",
+    "verify": "SERVER=bera-1 GUILDS=Snooze,Grace,Petal node verify2.mjs && SERVER=bera-2 GUILDS=Westhelm,Degens,Riot node verify2.mjs && node verify3.mjs",
+    "refresh": "npm run scrape && npm run build && npm run verify && npm run check"
   },
   "dependencies": {
     "playwright-core": "^1.63.0"
+  },
+  "devDependencies": {
+    "playwright": "1.63"
   }
 }
