@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bera Guild Score Analysis — Top 50</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#151514;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+    --mid:#383835;
+    --pos-1:#002870; --pos-2:#00347d; --pos-3:#003f89; --pos-4:#044b96; --pos-5:#1557a3;
+    --neg-1:#690000; --neg-2:#760000; --neg-3:#84000c; --neg-4:#910d19; --neg-5:#9f2025;
+    --accent:#3987e5; --accent-2:#e66767; --good:#0ca30c;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f4f3f0;
+    --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,0.10);
+    --mid:#f0efec;
+    --pos-1:#cde2fb; --pos-2:#b7d3f6; --pos-3:#9ec5f4; --pos-4:#86b6ef; --pos-5:#6da7ec;
+    --neg-1:#fad6d2; --neg-2:#f4c2be; --neg-3:#f1aea8; --neg-4:#ea9a93; --neg-5:#e4857e;
+    --accent:#2a78d6; --accent-2:#e34948; --good:#006300;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--plane); color:var(--ink);
+    font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { max-width:1440px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 4px; font-weight:650; letter-spacing:-.01em; }
+  h2 { font-size:15px; margin:0 0 12px; font-weight:600; }
+  .sub { color:var(--ink-2); font-size:13px; margin:0; }
+  .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+    flex-wrap:wrap; margin-bottom:20px; }
+  .card { background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:16px; }
+  .btn { background:var(--surface); color:var(--ink-2); border:1px solid var(--ring);
+    border-radius:7px; padding:6px 11px; font:inherit; font-size:13px; cursor:pointer; }
+  .btn:hover { color:var(--ink); border-color:var(--axis); }
+  .btn[aria-pressed="true"] { background:var(--accent); color:#fff; border-color:transparent; }
+  .seg { display:inline-flex; gap:2px; background:var(--surface-2); padding:3px;
+    border-radius:8px; border:1px solid var(--ring); }
+  .seg .btn { border:none; background:transparent; padding:5px 12px; border-radius:6px; }
+  .seg .btn[aria-pressed="true"] { background:var(--accent); color:#fff; }
+  input[type=search], input[type=text] { background:var(--surface-2); color:var(--ink);
+    border:1px solid var(--ring); border-radius:7px; padding:7px 10px; font:inherit; width:100%; }
+  .layout { display:grid; grid-template-columns:288px minmax(0,1fr); gap:18px; align-items:start; }
+  @media (max-width:1000px){ .layout { grid-template-columns:1fr; } }
+
+  /* guild picker */
+  .picker { position:sticky; top:16px; max-height:calc(100vh - 48px); display:flex; flex-direction:column; }
+  .picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
+  .glist { overflow-y:auto; margin:10px -6px -6px; padding:0 6px 6px; flex:1; min-height:120px; }
+  .grow { display:grid; grid-template-columns:auto 22px minmax(0,1fr) auto; gap:9px; align-items:center;
+    line-height:1.3;
+    padding:7px 8px; border-radius:7px; cursor:pointer; user-select:none; }
+  .grow:hover { background:var(--surface-2); }
+  .grow input { accent-color:var(--accent); margin:0; width:14px; height:14px; }
+  .grow .rk { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; text-align:right; }
+  .grow .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.25; }
+  .grow .nsub { display:block; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  i.up, i.dn { font-style:normal; font-size:.88em; }
+  i.up { color:var(--accent); } i.dn { color:var(--accent-2); }
+  .grow .gp { font-size:12px; font-variant-numeric:tabular-nums; padding:1px 6px;
+    border-radius:5px; border:1px solid var(--ring); }
+
+  /* stat tiles */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+  .tile { background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:13px 15px; }
+  .tile .lbl { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .tile .val { font-size:26px; font-weight:600; margin-top:3px; letter-spacing:-.02em; }
+  .tile .note { font-size:12px; color:var(--ink-2); margin-top:2px; }
+
+  /* tables */
+  .scroll { overflow-x:auto; }
+  table { border-collapse:separate; border-spacing:0; width:100%; font-size:13px; }
+  th, td { padding:7px 9px; text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child, th.lft, td.lft { text-align:left; }
+  thead th { position:sticky; top:0; z-index:2; background:var(--surface); color:var(--muted);
+    font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    border-bottom:1px solid var(--axis); cursor:pointer; }
+  thead th:hover { color:var(--ink); }
+  thead th .ar { opacity:.5; font-size:9px; }
+  tbody tr { border-bottom:1px solid var(--grid); }
+  tbody tr:hover { background:var(--surface-2); }
+  tbody td { border-bottom:1px solid var(--grid); }
+  .num { font-variant-numeric:tabular-nums; }
+  .pct { font-variant-numeric:tabular-nums; font-weight:600; border-radius:5px;
+    padding:3px 7px; display:inline-block; min-width:62px; text-align:right; }
+  .mname { font-weight:550; }
+  a { color:inherit; }
+  a.lk { color:inherit; text-decoration:none; border-bottom:1px solid transparent; }
+  a.lk:hover { color:var(--accent); border-bottom-color:currentColor; }
+  a.lk:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  a.lk-sub { color:var(--muted); text-decoration:none; }
+  a.lk-sub:hover { color:var(--accent); text-decoration:underline; }
+  a.lk-cell { color:inherit; text-decoration:none; display:inline-block; border-radius:5px; }
+  a.lk-cell:hover .pct { outline:1.5px solid var(--ink); outline-offset:1px; }
+  a.lk-cell:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .msub { color:var(--muted); font-size:11px; }
+  .na { color:var(--muted); font-weight:400; }
+
+  /* diverging bar chart */
+  .chart { display:grid; grid-template-columns:150px minmax(0,1fr); gap:4px 10px; align-items:center; }
+  .chart .cl { font-size:12px; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track { position:relative; height:17px; }
+  .track .zero { position:absolute; top:-2px; bottom:-2px; width:1px; background:var(--axis); }
+  .track .bar { position:absolute; top:2px; height:13px; }
+  .track .bar.p { border-radius:0 4px 4px 0; background:var(--accent); }
+  .track .bar.n { border-radius:4px 0 0 4px; background:var(--accent-2); }
+  .track .vl { position:absolute; top:1px; font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-2); }
+
+  /* legend */
+  .lg-wrap { display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap;
+    font-size:11px; color:var(--muted); margin:16px 0 10px; }
+  .lg-end { padding-top:1px; white-space:nowrap; }
+  .lg-scale { display:inline-block; }
+  .lg-sws { display:flex; }
+  .lg-sws .sw { width:31px; height:13px; }
+  .lg-sws .sw:first-child { border-radius:4px 0 0 4px; }
+  .lg-sws .sw:last-child { border-radius:0 4px 4px 0; }
+  .lg-ticks { display:block; position:relative; height:14px; width:341px; }
+  .lg-ticks i { position:absolute; top:2px; font-style:normal; font-variant-numeric:tabular-nums;
+    transform:translateX(-50%); }
+  .lg-ticks i:nth-child(1){left:31px} .lg-ticks i:nth-child(2){left:62px}
+  .lg-ticks i:nth-child(3){left:93px} .lg-ticks i:nth-child(4){left:124px}
+  .lg-ticks i:nth-child(5){left:155px} .lg-ticks i:nth-child(6){left:186px}
+  .lg-ticks i:nth-child(7){left:217px} .lg-ticks i:nth-child(8){left:248px}
+  .lg-ticks i:nth-child(9){left:279px} .lg-ticks i:nth-child(10){left:310px}
+  .tip { position:fixed; z-index:50; pointer-events:none; background:var(--surface);
+    border:1px solid var(--axis); border-radius:8px; padding:9px 11px; font-size:12px;
+    box-shadow:0 6px 24px rgba(0,0,0,.28); max-width:290px; display:none; }
+  .tip .tt { font-weight:650; margin-bottom:5px; }
+  .tip .tr { display:flex; justify-content:space-between; gap:14px; color:var(--ink-2); }
+  .tip .tr b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .foot { margin-top:26px; color:var(--muted); font-size:12px; line-height:1.7; }
+  .bar-row-hl { outline:1px solid var(--accent); outline-offset:1px; border-radius:4px; }
+  details.help { margin-top:14px; }
+  details.help summary { cursor:pointer; color:var(--ink-2); font-size:13px; }
+  details.help div { margin-top:8px; color:var(--ink-2); font-size:12.5px; line-height:1.65; max-width:78ch; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:var(--surface-2);
+    border:1px solid var(--ring); border-radius:999px; padding:3px 6px 3px 11px; font-size:12.5px; }
+  .chip button { background:none; border:none; color:var(--muted); cursor:pointer;
+    font-size:14px; line-height:1; padding:2px 4px; border-radius:50%; }
+  .chip button:hover { color:var(--ink); background:var(--ring); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1 id="pagetitle">Guild Score Analysis</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <div class="seg" role="group" aria-label="Server" id="srvSeg"></div>
+      <div class="seg" role="group" aria-label="Comparison basis">
+        <button class="btn" id="mFld" aria-pressed="true">vs all classes</button>
+        <button class="btn" id="mCls" aria-pressed="false">vs same class</button>
+      </div>
+      <button class="btn" id="csv">Export CSV</button>
+      <button class="btn" id="theme">Light</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="card picker">
+      <div class="picker-head">
+        <h2 style="margin:0">Guilds <span class="msub" id="selCount"></span></h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn" id="selNone" style="padding:4px 8px;font-size:12px">Clear</button>
+          <button class="btn" id="selAll" style="padding:4px 8px;font-size:12px">All 50</button>
+        </div>
+      </div>
+      <input type="search" id="gsearch" placeholder="Filter guilds…" aria-label="Filter guilds">
+      <div class="glist" id="glist"></div>
+    </aside>
+
+    <main>
+      <div id="chips" class="chips"></div>
+      <div id="tiles" class="tiles"></div>
+      <div id="panels"></div>
+      <details class="help">
+        <summary>How these percentages are calculated</summary>
+        <div id="helptext"></div>
+      </details>
+      <p class="foot" id="foot"></p>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+"use strict";
+const D = JSON.parse(document.getElementById('data').textContent);
+const MODES = D.modes, LAB = D.labels, SHORT = D.short, SLUG = D.slugs;
+const NM = MODES.length;
+const SITE = 'https://mapleidle.gg';
+const encQ = s => encodeURIComponent(s);
+const SRV = D.servers;
+let CUR = SRV[SRV.length - 1];   // default to the last server listed (Bera 2)
+// deep links into mapleidle.gg's own score-analysis tool
+const charUrl = (name, modeIdx) =>
+  `${SITE}/tools/score-analysis?kind=character&region=${CUR.region}&world=${CUR.worldId}&name=${encQ(name)}` +
+  (modeIdx != null ? `&mode=${SLUG[modeIdx]}` : '');
+const guildUrl = (name, modeIdx) =>
+  `${SITE}/tools/score-analysis?kind=guild&region=${CUR.region}&name=${encQ(name)}` +
+  (modeIdx != null ? `&mode=${SLUG[modeIdx]}` : '');
+const profileUrl = name => `${SITE}/characters/${CUR.region}/${encQ(name)}`;
+const link = (href, inner, cls, title) =>
+  `<a class="${cls||''}" href="${href}" target="_blank" rel="noopener"${title?` title="${esc(title)}"`:''}>${inner}</a>`;
+
+// ---------- unpack ----------
+// member tuple: [name, job, level, cp, tier4, avgF, avgC, sprite, [ [score,cp,dateIdx,vF,vC]|null x5 ]]
+const unpack = list => list.map(g => ({
+  rank:g.r, name:g.n, count:g.mc, emblem:g.e,
+  totalCp:g.tcp, totalCpText:g.tcpt, avgCp:g.acp,
+  conquestRank:g.cqr, conquestTotal:g.cqt, modeRank:g.mr, modeTotal:g.mt,
+  avgF:g.af, avgC:g.ac, modeAvg:g.ma,
+  members: g.m.map(m => ({
+    name:m[0], job:m[1], level:m[2], cp:m[3], tier:m[4]?'4th':'3rd',
+    avgF:m[5], avgC:m[6], sprite:m[7],
+    modes: m[8].map(x => x ? { score:x[0], cp:x[1], date:D.dates[x[2]], vF:x[3], vC:x[4] } : null)
+  }))
+}));
+SRV.forEach(s => { s.list = unpack(s.guilds); });
+let GUILDS = CUR.list;
+
+// ---------- state ----------
+const S = { sel:new Set([GUILDS[0].name]), basis:'F', sortKey:'avg', sortDir:-1, gfilter:'',
+            gSortKey:'rank', gSortDir:1 };
+
+// ---------- formatting ----------
+// MapleStory Idle's own scale: K, M, B, T, then AA (1e15), AB (1e18), AC (1e21)...
+const UNITS = (() => { const u=[];
+  for(let i=9;i>=0;i--) u.push([Math.pow(10,15+3*i), 'A'+String.fromCharCode(65+i)]);
+  return u.concat([[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']]); })();
+function big(n){ if(n==null) return '—'; const a=Math.abs(n);
+  for(const [v,s] of UNITS) if(a>=v){ const x=n/v; return (Math.abs(x)>=100?x.toFixed(0):Math.abs(x)>=10?x.toFixed(1):x.toFixed(2))+s; }
+  return n.toFixed(0); }
+const pct = v => v==null ? '—' : (v>0?'+':'') + v.toFixed(1) + '%';
+const vOf = (o) => o==null ? null : (S.basis==='F' ? o.vF : o.vC);
+const avgOf = (m) => S.basis==='F' ? m.avgF : m.avgC;
+const gAvgOf = (g) => S.basis==='F' ? g.avgF : g.avgC;
+
+// diverging scale: neutral band ±5, then 5 steps per arm
+const BINS = [5,15,30,60,120];
+function fill(v){ if(v==null) return 'transparent'; const a=Math.abs(v);
+  if(a < BINS[0]) return 'var(--mid)';
+  let i=1; while(i<BINS.length && a>=BINS[i]) i++;
+  return `var(--${v>0?'pos':'neg'}-${i})`; }
+
+// ---------- rendering ----------
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function selectedGuilds(){ return GUILDS.filter(g => S.sel.has(g.name)); }
+
+function renderPicker(){
+  const list = document.getElementById('glist'); list.textContent='';
+  const q = S.gfilter.toLowerCase();
+  for(const g of GUILDS){
+    if(q && !g.name.toLowerCase().includes(q)) continue;
+    const row = el('label','grow');
+    const v = gAvgOf(g);
+    const d = g.rank - g.conquestRank;
+    row.innerHTML = `<input type="checkbox" ${S.sel.has(g.name)?'checked':''}>` +
+      `<span class="rk">${g.rank}</span>` +
+      `<span class="nm">${esc(g.name)}` +
+        `<span class="nsub" title="Conquest rank among these 50, by total guild conquest score">` +
+        `CQ #${g.conquestRank}${d?` <i class="${d>0?'up':'dn'}">${d>0?'▲':'▼'}${Math.abs(d)}</i>`:''}</span></span>` +
+      `<span class="gp" style="background:${fill(v)}">${pct(v)}</span>`;
+    row.querySelector('input').addEventListener('change', e => {
+      if(e.target.checked) S.sel.add(g.name); else S.sel.delete(g.name); render();
+    });
+    list.appendChild(row);
+  }
+  document.getElementById('selCount').textContent = `${S.sel.size} selected`;
+}
+
+function renderChips(){
+  const box = document.getElementById('chips'); box.textContent='';
+  const sel = selectedGuilds();
+  if(sel.length === 0 || sel.length > 12) return;
+  for(const g of sel){
+    const c = el('span','chip',
+      `#${g.rank} ${link(guildUrl(g.name), esc(g.name), 'lk', `Open ${g.name} in MapleIdle score analysis`)} ` +
+      `<button aria-label="Remove ${esc(g.name)}">×</button>`);
+    c.querySelector('button').onclick = () => { S.sel.delete(g.name); render(); };
+    box.appendChild(c);
+  }
+}
+
+function renderTiles(){
+  const box = document.getElementById('tiles'); box.textContent='';
+  const sel = selectedGuilds();
+  if(!sel.length) return;
+  const mem = sel.flatMap(g => g.members);
+  const vals = mem.map(avgOf).filter(v => v!=null);
+  const mean = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  const above = vals.filter(v=>v>0).length;
+  const best = mem.filter(m=>avgOf(m)!=null).sort((a,b)=>avgOf(b)-avgOf(a))[0];
+  const chip = v => v==null ? '' : `<span class="pct" style="background:${fill(v)};min-width:0;font-size:11px;padding:2px 6px">${pct(v)}</span>`;
+  const one = sel.length === 1 ? sel[0] : null;
+  const tiles = one ? [
+    ['CP rank', '#' + one.rank, `of 50 · ${one.members.length} members`],
+    ['Total CP', big(one.totalCp), `avg ${big(one.totalCp / one.members.length)} per member`],
+    ['Conquest rank', '#' + one.conquestRank, `total ${big(one.conquestTotal)}` +
+      (one.rank - one.conquestRank ? ` · ${one.conquestRank < one.rank ? '▲' : '▼'}${Math.abs(one.rank - one.conquestRank)} vs CP` : ' · same as CP')],
+    ['Average vs baseline', pct(mean), 'mean of member averages'],
+    ['Above baseline', vals.length? Math.round(above/vals.length*100)+'%' : '—', `${above} of ${vals.length} members`],
+    ['Top member', best ? best.name : '—', best ? `${best.job} · Lv ${best.level}` : '', best?avgOf(best):null],
+  ] : [
+    ['Guilds selected', String(sel.length), `ranks ${Math.min(...sel.map(g=>g.rank))}–${Math.max(...sel.map(g=>g.rank))}`],
+    ['Members', String(mem.length), `${vals.length} with scores`],
+    ['Total CP', big(sel.reduce((a,g)=>a+g.totalCp,0)), 'combined'],
+    ['Average vs baseline', pct(mean), 'mean of member averages'],
+    ['Above baseline', vals.length? Math.round(above/vals.length*100)+'%' : '—', `${above} of ${vals.length} members`],
+    ['Top member', best ? best.name : '—', best ? `${best.job} · Lv ${best.level}` : '', best?avgOf(best):null],
+  ];
+  for(const [lbl,val,note,cv] of tiles){
+    const t = el('div','tile');
+    t.innerHTML = `<div class="lbl">${lbl}</div><div class="val">${esc(val)}</div>` +
+      `<div class="note">${chip(cv)}${cv!=null?' ':''}${esc(note||'')}</div>`;
+    box.appendChild(t);
+  }
+}
+
+function sortMembers(rows){
+  const k = S.sortKey, d = S.sortDir;
+  const key = m => {
+    if(k==='name') return m.name.toLowerCase();
+    if(k==='guild') return m.__g.toLowerCase();
+    if(k==='job') return (m.job||'').toLowerCase();
+    if(k==='level') return m.level;
+    if(k==='cp') return m.cp;
+    if(k==='avg') return avgOf(m);
+    return vOf(m.modes[Number(k)]);
+  };
+  return rows.slice().sort((a,b)=>{
+    const x=key(a), y=key(b);
+    if(x==null && y==null) return 0;
+    if(x==null) return 1; if(y==null) return -1;
+    if(typeof x==='string') return d*x.localeCompare(y);
+    return d*(x-y);
+  });
+}
+
+// `keyProp`/`dirProp` name the fields on S this header drives, so the member table and the
+// guild table can sort independently.
+function mkTh(keyProp, dirProp, label, k, wide, defDir){
+  const on = S[keyProp] === k;
+  const t = el('th', null, esc(label) + (on ? ` <span class="ar">${S[dirProp]>0?'▲':'▼'}</span>` : ''));
+  if(wide) t.classList.add('lft');
+  t.setAttribute('role','button');
+  t.setAttribute('tabindex','0');
+  t.setAttribute('aria-sort', on ? (S[dirProp]>0?'ascending':'descending') : 'none');
+  const go = () => { if(S[keyProp]===k) S[dirProp]*=-1; else { S[keyProp]=k; S[dirProp]=defDir; } render(); };
+  t.onclick = go;
+  t.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } };
+  return t;
+}
+const th  = (label,k,wide) => mkTh('sortKey','sortDir',label,k,wide,(k==='name'||k==='job'||k==='guild')?1:-1);
+const gth = (label,k,wide) => mkTh('gSortKey','gSortDir',label,k,wide,(k==='name'||k==='rank'||k==='cq')?1:-1);
+
+// average of a guild's members for one content, on the current basis
+function gModeAvg(g, i){
+  const vals = g.members.map(m => vOf(m.modes[i])).filter(v => v != null);
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+function sortGuilds(rows){
+  const k = S.gSortKey, d = S.gSortDir;
+  const key = g => {
+    if(k==='name') return g.name.toLowerCase();
+    if(k==='rank') return g.rank;
+    if(k==='members') return g.members.length;
+    if(k==='cp') return g.totalCp;
+    if(k==='cq') return g.conquestRank;
+    if(k==='avg') return gAvgOf(g);
+    return gModeAvg(g, Number(k));
+  };
+  return rows.slice().sort((a,b)=>{
+    const x=key(a), y=key(b);
+    if(x==null && y==null) return a.rank-b.rank;
+    if(x==null) return 1; if(y==null) return -1;
+    if(typeof x==='string') return d*x.localeCompare(y) || a.rank-b.rank;
+    return d*(x-y) || a.rank-b.rank;
+  });
+}
+
+function memberTable(sel){
+  const multi = sel.length > 1;
+  const rows = sel.flatMap(g => g.members.map(m => Object.assign(Object.create(Object.getPrototypeOf(m)), m, {__g:g.name, __r:g.rank})));
+  const tbl = el('table');
+  const thead = el('thead'); const hr = el('tr');
+  hr.appendChild(th('Member','name',true));
+  if(multi) hr.appendChild(th('Guild','guild',true));
+  hr.appendChild(th('Lv','level'));
+  hr.appendChild(th('CP','cp'));
+  for(let i=0;i<NM;i++) hr.appendChild(th(SHORT[i], String(i)));
+  hr.appendChild(th('Average','avg'));
+  thead.appendChild(hr); tbl.appendChild(thead);
+  const tb = el('tbody');
+  for(const m of sortMembers(rows)){
+    const tr = el('tr');
+    tr.appendChild(el('td', null,
+      `<div class="mname">${link(charUrl(m.name), esc(m.name), 'lk', `Open ${m.name} in MapleIdle score analysis`)}</div>` +
+      `<div class="msub">${esc(m.job||'—')} · ${m.tier} · ${link(profileUrl(m.name),'profile','lk-sub',`Open ${m.name}'s character page`)}</div>`));
+    if(multi) tr.appendChild(el('td','lft',
+      `<span class="msub">#${m.__r}</span> ${link(guildUrl(m.__g), esc(m.__g), 'lk', `Open ${m.__g} in MapleIdle score analysis`)}`));
+    tr.appendChild(el('td','num', m.level));
+    tr.appendChild(el('td','num', big(m.cp)));
+    for(let i=0;i<NM;i++){
+      const o = m.modes[i], v = vOf(o);
+      const td = el('td', null, v==null ? '<span class="na">—</span>' :
+        link(charUrl(m.name, i), `<span class="pct" style="background:${fill(v)}">${pct(v)}</span>`,
+             'lk-cell', `${m.name} — ${LAB[i]} on MapleIdle`));
+      if(o){ td.dataset.tip = JSON.stringify({ n:m.name, job:m.job, mode:LAB[i], score:o.score, cp:o.cp, date:o.date, vF:o.vF, vC:o.vC }); }
+      tr.appendChild(td);
+    }
+    const av = avgOf(m);
+    tr.appendChild(el('td', null, av==null ? '<span class="na">—</span>' :
+      `<span class="pct" style="background:${fill(av)}">${pct(av)}</span>`));
+    tb.appendChild(tr);
+  }
+  tbl.appendChild(tb);
+  const wrap = el('div','scroll'); wrap.appendChild(tbl);
+  return wrap;
+}
+
+function guildTable(sel){
+  const tbl = el('table');
+  const hr = el('tr');
+  hr.appendChild(gth('CP #','rank'));
+  hr.appendChild(gth('Guild','name',true));
+  hr.appendChild(gth('Members','members'));
+  hr.appendChild(gth('Total CP','cp'));
+  hr.appendChild(gth('CQ #','cq'));
+  SHORT.forEach((s,i) => hr.appendChild(gth(s, String(i))));
+  hr.appendChild(gth('Average','avg'));
+  const thead=el('thead'); thead.appendChild(hr); tbl.appendChild(thead);
+  const tb = el('tbody');
+  for(const g of sortGuilds(sel)){
+    const tr = el('tr');
+    tr.appendChild(el('td','num', g.rank));
+    tr.appendChild(el('td','lft', link(guildUrl(g.name), esc(g.name), 'lk', `Open ${g.name} in MapleIdle score analysis`)));
+    tr.appendChild(el('td','num', g.members.length));
+    tr.appendChild(el('td','num', big(g.totalCp)));
+    const dr = g.rank - g.conquestRank;
+    tr.appendChild(el('td','num', `${g.conquestRank}${dr?` <i class="${dr>0?'up':'dn'}">${dr>0?'▲':'▼'}${Math.abs(dr)}</i>`:''}`));
+    for(let i=0;i<NM;i++){
+      const v = gModeAvg(g, i);
+      tr.appendChild(el('td', null, v==null?'<span class="na">—</span>':
+        link(guildUrl(g.name, i), `<span class="pct" style="background:${fill(v)}">${pct(v)}</span>`,
+             'lk-cell', `${g.name} — ${LAB[i]} on MapleIdle`)));
+    }
+    const v = gAvgOf(g);
+    tr.appendChild(el('td', null, `<span class="pct" style="background:${fill(v)}">${pct(v)}</span>`));
+    tb.appendChild(tr);
+  }
+  tbl.appendChild(tb);
+  const wrap=el('div','scroll'); wrap.appendChild(tbl); return wrap;
+}
+
+function divergingChart(items, labelFn, valFn, title){
+  const vals = items.map(valFn).filter(v=>v!=null);
+  if(!vals.length) return el('div');
+  const max = Math.max(10, ...vals.map(Math.abs));
+  const box = el('div');
+  box.appendChild(el('h2', null, esc(title)));
+  const c = el('div','chart');
+  for(const it of items){
+    const v = valFn(it);
+    const lbl = labelFn(it);
+    c.appendChild(el('div','cl', it.members ? link(guildUrl(it.name), esc(lbl), 'lk')
+                                            : link(charUrl(it.name), esc(lbl), 'lk')));
+    const tr = el('div','track');
+    tr.innerHTML = `<span class="zero" style="left:50%"></span>`;
+    if(v!=null){
+      const w = Math.abs(v)/max*50;
+      const bar = el('span','bar '+(v>0?'p':'n'));
+      if(v>0){ bar.style.left='50%'; bar.style.width=w+'%'; }
+      else { bar.style.right='50%'; bar.style.width=w+'%'; }
+      tr.appendChild(bar);
+      const vl = el('span','vl', pct(v));
+      if(v>0) vl.style.left = `calc(50% + ${w}% + 6px)`; else { vl.style.right = `calc(50% + ${w}% + 6px)`; }
+      tr.appendChild(vl);
+    } else { tr.appendChild(el('span','vl na','—')).style.left='calc(50% + 6px)'; }
+    c.appendChild(tr);
+  }
+  box.appendChild(c);
+  return box;
+}
+
+function legend(){
+  const box = el('div','lg-wrap');
+  const ticks = ['−120','−60','−30','−15','−5','+5','+15','+30','+60','+120'];
+  const sws = [5,4,3,2,1].map(i=>`<span class="sw" style="background:var(--neg-${i})"></span>`).join('') +
+    `<span class="sw" style="background:var(--mid)"></span>` +
+    [1,2,3,4,5].map(i=>`<span class="sw" style="background:var(--pos-${i})"></span>`).join('');
+  box.innerHTML =
+    `<span class="lg-end">Below baseline</span>` +
+    `<span class="lg-scale"><span class="lg-sws">${sws}</span>` +
+    `<span class="lg-ticks">${ticks.map(v=>`<i>${v}</i>`).join('')}</span></span>` +
+    `<span class="lg-end">Above baseline</span>`;
+  return box;
+}
+
+function render(){
+  const sel = selectedGuilds();
+  renderPicker(); renderChips(); renderTiles();
+  const panels = document.getElementById('panels'); panels.textContent='';
+  if(!sel.length){
+    panels.appendChild(el('div','card','<p class="sub">Pick one or more guilds on the left to see the member breakdown.</p>'));
+    return;
+  }
+  if(sel.length > 1){
+    const c = el('div','card'); c.style.marginBottom='18px';
+    c.appendChild(el('h2',null,`Guild comparison — average ${S.basis==='F'?'vs all classes':'vs same class'}`));
+    c.appendChild(guildTable(sel));
+    c.appendChild(divergingChart(sel.slice().sort((a,b)=>(gAvgOf(b)??-1e9)-(gAvgOf(a)??-1e9)),
+      g=>`#${g.rank} ${g.name}`, gAvgOf, 'Guild average across all 5 contents'));
+    panels.appendChild(c);
+  }
+  const c2 = el('div','card');
+  const title = sel.length===1 ? `${sel[0].name} — member breakdown` : `All members (${sel.reduce((a,g)=>a+g.members.length,0)})`;
+  c2.appendChild(el('h2',null,esc(title)));
+  c2.appendChild(el('p','sub', `Each cell is the member's best score for that content measured against the site's CP-fitted baseline. Sort by any column header, hover a cell for the raw score, or click a name or percentage to open it on mapleidle.gg.`));
+  c2.appendChild(legend());
+  c2.appendChild(memberTable(sel));
+  panels.appendChild(c2);
+
+  if(sel.length === 1){
+    const c3 = el('div','card'); c3.style.marginTop='18px';
+    const ms = sel[0].members.filter(m=>avgOf(m)!=null).sort((a,b)=>avgOf(b)-avgOf(a));
+    c3.appendChild(divergingChart(ms, m=>`${m.name} · ${m.job}`, avgOf,
+      `${sel[0].name} — average across all 5 contents`));
+    panels.appendChild(c3);
+  }
+}
+
+// ---------- tooltip ----------
+const tip = document.getElementById('tip');
+document.addEventListener('mouseover', e => {
+  const td = e.target.closest('td[data-tip]'); if(!td) return;
+  const d = JSON.parse(td.dataset.tip);
+  tip.innerHTML = `<div class="tt">${esc(d.n)} — ${esc(d.mode)}</div>` +
+    `<div class="tr"><span>Best score</span><b>${big(d.score)}</b></div>` +
+    `<div class="tr"><span>CP at score</span><b>${big(d.cp)}</b></div>` +
+    `<div class="tr"><span>vs all classes</span><b>${pct(d.vF)}</b></div>` +
+    `<div class="tr"><span>vs ${esc(d.job||'class')}</span><b>${pct(d.vC)}</b></div>` +
+    `<div class="tr"><span>Snapshot</span><b>${esc(d.date||'—')}</b></div>`;
+  tip.style.display='block';
+});
+document.addEventListener('mousemove', e => {
+  if(tip.style.display!=='block') return;
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX+14, y = e.clientY+14;
+  if(x+r.width > innerWidth-8) x = e.clientX - r.width - 14;
+  if(y+r.height > innerHeight-8) y = e.clientY - r.height - 14;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+});
+document.addEventListener('mouseout', e => { if(e.target.closest('td[data-tip]')) tip.style.display='none'; });
+
+// ---------- controls ----------
+document.getElementById('gsearch').addEventListener('input', e => { S.gfilter=e.target.value; renderPicker(); });
+document.getElementById('selAll').onclick = () => { GUILDS.forEach(g=>S.sel.add(g.name)); render(); };
+document.getElementById('selNone').onclick = () => { S.sel.clear(); render(); };
+document.getElementById('mFld').onclick = () => setBasis('F');
+document.getElementById('mCls').onclick = () => setBasis('C');
+function setBasis(b){ S.basis=b;
+  document.getElementById('mFld').setAttribute('aria-pressed', b==='F');
+  document.getElementById('mCls').setAttribute('aria-pressed', b==='C'); render(); }
+document.getElementById('theme').onclick = function(){
+  const light = document.documentElement.getAttribute('data-theme')==='light';
+  document.documentElement.setAttribute('data-theme', light?'dark':'light');
+  this.textContent = light?'Light':'Dark';
+};
+document.getElementById('csv').onclick = () => {
+  const sel = selectedGuilds(); if(!sel.length) return;
+  const snake = s => s.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase();
+  const head = ['server','guild_cp_rank','guild_conquest_rank','guild_total_cp','guild_conquest_total',
+    'guild','member','job','level','cp','tier',
+    ...MODES.flatMap(m=>[snake(m)+'_score', snake(m)+'_cp_at_score', snake(m)+'_date',
+      snake(m)+'_vs_all_pct', snake(m)+'_vs_class_pct']),
+    'avg_vs_all_pct','avg_vs_class_pct'];
+  const lines = [head.join(',')];
+  for(const g of sel) for(const m of g.members){
+    const row = [CUR.label, g.rank, g.conquestRank, g.totalCp, g.conquestTotal,
+                 g.name, m.name, m.job, m.level, m.cp, m.tier];
+    for(const o of m.modes) row.push(o?o.score:'', o?o.cp:'', o?o.date:'', o?o.vF:'', o?o.vC:'');
+    row.push(m.avgF ?? '', m.avgC ?? '');
+    lines.push(row.map(v => typeof v==='string' && /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${CUR.id}-guild-scores-${sel.length===1?sel[0].name:'selection'}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+// ---------- server switcher ----------
+const srvSeg = document.getElementById('srvSeg');
+SRV.forEach(s => {
+  const b = el('button','btn', esc(s.label));
+  b.setAttribute('aria-pressed', String(s === CUR));
+  b.onclick = () => {
+    if (s === CUR) return;
+    CUR = s; GUILDS = s.list;
+    S.sel = new Set([GUILDS[0].name]); S.gfilter = '';
+    document.getElementById('gsearch').value = '';
+    [...srvSeg.children].forEach((c,i) => c.setAttribute('aria-pressed', String(SRV[i] === CUR)));
+    setHeader(); render();
+  };
+  srvSeg.appendChild(b);
+});
+function setHeader(){
+  document.getElementById('pagetitle').textContent = `${CUR.label} — Guild Score Analysis`;
+  const totalMembers = GUILDS.reduce((a,g)=>a+g.members.length,0);
+  document.getElementById('subtitle').textContent =
+    `Top 50 guilds by total CP · ${totalMembers} members · scores measured against MapleIdle.gg's ` +
+    `CP-fitted baseline · pulled ${CUR.scrapedAt.slice(0,10)}`;
+  document.getElementById('snapline').textContent =
+    `Snapshot dates per content: ${MODES.map((m,i)=>`${LAB[i]} ${CUR.snap[i]}`).join(' · ')}.`;
+}
+
+// ---------- static copy ----------
+document.getElementById('helptext').innerHTML =
+  `<p>MapleIdle fits a power curve to every ranked player's score against their combat power, separately for each content and each job tier (4th job at Lv 100+, 3rd job below). The baseline expected score is <code>exp(a + b · ln(CP))</code>.</p>` +
+  `<p><b>vs all classes</b> is how far a member's best score sits above or below that curve, using the CP they had when they set the score rather than their current CP. <b>vs same class</b> divides that out by the class's own average offset, so a Bishop is judged against Bishops.</p>` +
+  `<p><b>Average</b> is the unweighted mean of a member's five content percentages. A guild's average is the mean of its members' averages. Members with no recorded score in a content are skipped rather than counted as zero.</p>` +
+  `<p><b>CP #</b> is the guild's rank by total combat power, which is how MapleIdle orders its guild list. <b>CQ #</b> is a rank this page derives: guilds sorted by the sum of their members' best Guild Conquest scores. MapleIdle publishes no guild-level conquest ranking, so this is a rank <i>within these 50 guilds only</i>, and like total CP it rewards larger rosters. A guild sitting well above its CP rank on conquest is punching above its combat power.</p>` +
+  `<p id="snapline"></p>`;
+document.getElementById('foot').innerHTML =
+  `Data from mapleidle.gg (unofficial MapleStory Idle RPG fan site, not affiliated with Nexon). ` +
+  `Percentages reproduce the site's own score-analysis math exactly and were verified cell-for-cell against its rendered tables.`;
+
+setHeader();
+render();
+})();
+</script>
+</body>
+</html>
