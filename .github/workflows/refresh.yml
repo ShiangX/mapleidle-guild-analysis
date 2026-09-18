@@ -1,10 +1,16 @@
 name: Refresh data
 
+# The weekly schedule is deliberately disabled. mapleidle.gg sits behind a Vercel
+# checkpoint that never clears from GitHub-hosted runners — a probe on 2026-09-18 sat at
+# "Vercel Security Checkpoint" for 60s on every attempt, from Azure IPs, while the same
+# code passes instantly from a home connection. Retries cannot fix a block on who is
+# asking. Weekly refresh runs from ./refresh.sh on a trusted machine instead.
+#
+# Re-enable the cron below only if this job is pointed at a self-hosted runner
+# (runs-on: self-hosted) on a connection the checkpoint accepts.
 on:
-  schedule:
-    # Mondays 11:17 UTC (about 4am Pacific). Offset minute so we are not in the
-    # crowd that GitHub delays at the top of the hour.
-    - cron: '17 11 * * 1'
+  # schedule:
+  #   - cron: '17 11 * * 1'
   workflow_dispatch:
     inputs:
       top:

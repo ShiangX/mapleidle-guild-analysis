@@ -58,19 +58,20 @@ Per-content ranks and totals for the other four contents are in `dataset-*.json`
 Both tables sort on every column, independently of each other: click a header to sort, click
 again to reverse. Ties fall back to CP rank.
 
-## Weekly refresh
+## Refreshing the data
 
-`.github/workflows/refresh.yml` re-runs the whole pipeline every Monday and pushes only if the
-data moved. `workflow_dispatch` runs it on demand, with inputs for guild depth and for skipping
-the verification step.
+    ./refresh.sh
 
-The fragile part is mapleidle.gg's Vercel challenge, so the job defends in depth: each script
-retries its own requests, each scrape step retries as a whole, the browser is cached so a run
-never hinges on a CDN download, and `check-build.mjs` opens the built page and fails the job if
-it is broken. Nothing is committed unless scrape, build, verify and check all pass — a bad run
-leaves the published page untouched rather than replacing it with something worse.
+Scrapes both servers, rebuilds, verifies against the live site, checks the built page, and
+pushes only if all of that passes **and** the data actually moved. A bad run leaves the
+published page untouched rather than replacing it with something worse.
 
-    npm run refresh     # the same sequence, locally
+**This has to run from a trusted connection, not GitHub Actions.** mapleidle.gg sits behind a
+Vercel checkpoint that never clears from GitHub-hosted runners: a probe on 2026-09-18 sat at
+"Vercel Security Checkpoint" for 60 seconds on every attempt across three runs, from Azure
+IPs, while the identical code passes instantly from a home connection. Retries do not help —
+the block is on who is asking, not how often. `.github/workflows/refresh.yml` is kept with its
+schedule commented out; it would work unchanged on a self-hosted runner.
 
 ## Verification
 
