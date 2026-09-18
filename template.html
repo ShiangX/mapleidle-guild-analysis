@@ -205,7 +205,10 @@ const NM = MODES.length;
 const SITE = 'https://mapleidle.gg';
 const encQ = s => encodeURIComponent(s);
 const SRV = D.servers;
-let CUR = SRV[SRV.length - 1];   // default to the last server listed (Bera 2)
+// What the page opens on. DEFAULT_GUILD falls back to the #1 guild when a server has no entry.
+const DEFAULT_SERVER = 'bera-1';
+const DEFAULT_GUILD = { 'bera-1': 'Grace' };
+let CUR = SRV.find(s => s.id === DEFAULT_SERVER) || SRV[0];
 // deep links into mapleidle.gg's own score-analysis tool
 const charUrl = (name, modeIdx) =>
   `${SITE}/tools/score-analysis?kind=character&region=${CUR.region}&world=${CUR.worldId}&name=${encQ(name)}` +
@@ -232,9 +235,13 @@ const unpack = list => list.map(g => ({
 }));
 SRV.forEach(s => { s.list = unpack(s.guilds); });
 let GUILDS = CUR.list;
+const startGuild = srv => {
+  const want = DEFAULT_GUILD[srv.id];
+  return (want && srv.list.some(g => g.name === want)) ? want : srv.list[0].name;
+};
 
 // ---------- state ----------
-const S = { sel:new Set([GUILDS[0].name]), basis:'F', sortKey:'avg', sortDir:-1, gfilter:'',
+const S = { sel:new Set([startGuild(CUR)]), basis:'F', sortKey:'avg', sortDir:-1, gfilter:'',
             gSortKey:'rank', gSortDir:1 };
 
 // ---------- formatting ----------
@@ -283,6 +290,12 @@ function renderPicker(){
     list.appendChild(row);
   }
   document.getElementById('selCount').textContent = `${S.sel.size} selected`;
+  // a default guild well down the list would otherwise open off-screen
+  if(S.sel.size === 1){
+    const row = list.querySelector('input:checked')?.closest('.grow');
+    if(row && (row.offsetTop < list.scrollTop || row.offsetTop > list.scrollTop + list.clientHeight - row.offsetHeight))
+      list.scrollTop = Math.max(0, row.offsetTop - list.clientHeight / 2 + row.offsetHeight / 2);
+  }
 }
 
 function renderChips(){
@@ -614,7 +627,7 @@ SRV.forEach(s => {
   b.onclick = () => {
     if (s === CUR) return;
     CUR = s; GUILDS = s.list;
-    S.sel = new Set([GUILDS[0].name]); S.gfilter = '';
+    S.sel = new Set([startGuild(s)]); S.gfilter = '';
     document.getElementById('gsearch').value = '';
     [...srvSeg.children].forEach((c,i) => c.setAttribute('aria-pressed', String(SRV[i] === CUR)));
     setHeader(); render();
