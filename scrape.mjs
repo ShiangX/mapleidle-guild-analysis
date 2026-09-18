@@ -2,7 +2,7 @@
 // Writes raw-<server>.json. Exits non-zero if anything is missing, so CI never publishes a
 // partial scrape.
 import fs from 'node:fs';
-import { launch, retry } from './browser.mjs';
+import { launch, retry, goto, describe } from './browser.mjs';
 
 const SERVER = process.env.SERVER || 'bera-2';
 const [REGION, WORLD] = SERVER.split('-');
@@ -17,8 +17,9 @@ p.setDefaultTimeout(45000);
 const guilds = [];
 for (let page = 1; guilds.length < TOP; page++) {
   const rows = await retry(`guild list page ${page}`, TRIES, async () => {
-    await p.goto(`https://mapleidle.gg/guild?server=${SERVER}&page=${page}`, { waitUntil: 'domcontentloaded' });
-    await p.waitForSelector('table tbody tr', { timeout: 30000 });
+    await goto(p, `https://mapleidle.gg/guild?server=${SERVER}&page=${page}`);
+    await p.waitForSelector('table tbody tr', { timeout: 30000 })
+      .catch(async e => { throw new Error(`${e.message.split('\n')[0]} | ${await describe(p)}`); });
     return p.evaluate(() => [...document.querySelectorAll('table tbody tr')].map(tr => {
       const c = [...tr.querySelectorAll('td')].map(td => td.innerText.trim());
       const a = tr.querySelector('a[href^="/guild/"]');
@@ -36,7 +37,7 @@ if (guilds.length < TOP) throw new Error(`only found ${guilds.length} guilds, ex
 
 // ---- 2. baseline curves from the score-analysis page ----
 const baselines = await retry('baselines', TRIES, async () => {
-  await p.goto('https://mapleidle.gg/tools/score-analysis', { waitUntil: 'domcontentloaded' });
+  await goto(p, 'https://mapleidle.gg/tools/score-analysis');
   return p.evaluate(async () => {
     const BS = String.fromCharCode(92);
     const h = await (await fetch('/tools/score-analysis')).text();

@@ -17,6 +17,33 @@ export function launch(opts = {}) {
   });
 }
 
+/**
+ * Navigate, then wait out mapleidle.gg's Vercel checkpoint if it appears. The checkpoint
+ * serves a JS challenge and self-redirects once solved; on a slow or suspect network that
+ * can take a while, so poll rather than assume the first paint is the real page.
+ */
+export async function goto(p, url, { settleMs = 60000 } = {}) {
+  await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  const deadline = Date.now() + settleMs;
+  while (Date.now() < deadline) {
+    const t = await p.title().catch(() => '');
+    if (!/security checkpoint|just a moment|attention required/i.test(t)) return;
+    await p.waitForTimeout(2000);
+  }
+  throw new Error(`blocked at "${await p.title().catch(() => '?')}" after ${settleMs}ms — ${url}`);
+}
+
+/** Describe whatever the page is actually showing. Used to make timeouts diagnosable. */
+export async function describe(p) {
+  try {
+    const d = await p.evaluate(() => ({
+      url: location.href, title: document.title,
+      text: document.body?.innerText.replace(/\s+/g, ' ').slice(0, 220) || '',
+    }));
+    return `url=${d.url} title="${d.title}" body="${d.text}"`;
+  } catch (e) { return `could not inspect page: ${e.message}`; }
+}
+
 /** Run `fn`, retrying on failure with linear backoff. Throws the last error if all tries fail. */
 export async function retry(label, tries, fn) {
   let last;
