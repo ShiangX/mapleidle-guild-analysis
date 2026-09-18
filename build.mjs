@@ -48,14 +48,14 @@ const guilds = raw.guilds.filter(g => g.data).map(g => {
   const totalCp = members.reduce((a, m) => a + (m.cp ?? 0), 0);
   const modeTotal = {};
   for (const mode of MODES) modeTotal[mode] = members.reduce((a, m) => a + (m.modes[mode]?.score ?? 0), 0);
-  return { rank: g.rank, name: g.name, server: g.server, membersCount: g.data.membersCount,
+  return { rank: g.rank, extra: !!g.extra, name: g.name, server: g.server, membersCount: g.data.membersCount,
            emblemHash: g.data.emblemHash, totalCp, totalCpText: g.totalCpText, avgCpText: g.avgCpText,
            modeTotal, conquestTotal: modeTotal.conquest,
            guildAvgVsField: avg('avgVsField'), guildAvgVsClass: avg('avgVsClass'), modeAvgVsField: modeAvg, members };
 });
 
 // Derived rankings. The site publishes no guild-level conquest ranking, so these are ranks
-// within this scraped top-50 cohort, by summed member score.
+// within the scraped cohort (the top N plus any named extras), by summed member score.
 const rankBy = (key, get) => {
   guilds.slice().sort((a, b) => get(b) - get(a)).forEach((g, i) => { g[key] = i + 1; });
 };
@@ -71,7 +71,9 @@ const out = { server: raw.server, region: raw.region, worldId: raw.worldId, scra
 fs.writeFileSync(`dataset-${SERVER}.json`, JSON.stringify(out));
 const totalMembers = guilds.reduce((a, g) => a + g.members.length, 0);
 const rankedMembers = guilds.reduce((a, g) => a + g.members.filter(m => m.ranked === 5).length, 0);
-console.log(`${SERVER}: guilds=${guilds.length} members=${totalMembers} fullyRanked=${rankedMembers} bytes=${fs.statSync(`dataset-${SERVER}.json`).size}`);
+const extras = guilds.filter(g => g.extra);
+console.log(`${SERVER}: guilds=${guilds.length} members=${totalMembers} fullyRanked=${rankedMembers} bytes=${fs.statSync(`dataset-${SERVER}.json`).size}` +
+  (extras.length ? ` | extras: ${extras.map(g => `${g.name} (CP #${g.rank}, CQ #${g.conquestRank})`).join(', ')}` : ''));
 console.log('cp rank vs conquest rank (biggest movers):');
 guilds.slice().sort((a,b)=>Math.abs(b.cpRank-b.conquestRank)-Math.abs(a.cpRank-a.conquestRank)).slice(0,6)
   .forEach(g => console.log(`  ${g.name.padEnd(14)} cp #${String(g.cpRank).padStart(2)}  conquest #${String(g.conquestRank).padStart(2)}  (${g.conquestRank<g.cpRank?'+':''}${g.cpRank-g.conquestRank})`));

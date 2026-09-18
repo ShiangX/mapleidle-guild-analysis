@@ -8,6 +8,9 @@ const SERVER = process.env.SERVER || 'bera-2';
 const [REGION, WORLD] = SERVER.split('-');
 const TOP = Number(process.env.TOP || 50);
 const TRIES = Number(process.env.TRIES || 4);
+// Guilds to include beyond the top N, by name. Their real CP rank is looked up from the
+// ranking list so they are not pretending to be top-50.
+const EXTRA = (process.env.EXTRA || '').split(',').map(s => s.trim()).filter(Boolean);
 
 const b = await launch();
 const p = await b.newPage();
@@ -34,6 +37,42 @@ for (let page = 1; guilds.length < TOP; page++) {
 }
 guilds.length = Math.min(guilds.length, TOP);
 if (guilds.length < TOP) throw new Error(`only found ${guilds.length} guilds, expected ${TOP}`);
+
+// ---- 1b. named extras from outside the top N ----
+for (const want of EXTRA) {
+  if (guilds.some(g => g.name.toLowerCase() === want.toLowerCase())) {
+    console.error(`extra "${want}" is already in the top ${TOP}, skipping`);
+    continue;
+  }
+  // resolve the canonical name and confirm it is on this server
+  const hit = await retry(`search ${want}`, TRIES, async () => {
+    const r = await p.evaluate(async q => (await (await fetch('/api/search?q=' + encodeURIComponent(q))).json()), want);
+    const g = (r.guilds || []).find(x => x.name.toLowerCase() === want.toLowerCase()
+                                      && x.region === REGION && String(x.worldId) === WORLD);
+    if (!g) throw new Error(`no guild "${want}" on ${SERVER}`);
+    return g;
+  });
+  // walk the ranking list for its true CP rank
+  let found = null;
+  for (let page = 1; page <= 200 && !found; page++) {
+    const rows = await retry(`rank lookup ${hit.name} page ${page}`, TRIES, async () => {
+      await goto(p, `https://mapleidle.gg/guild?server=${SERVER}&page=${page}`);
+      await p.waitForSelector('table tbody tr', { timeout: 30000 })
+        .catch(async e => { throw new Error(`${e.message.split('\n')[0]} | ${await describe(p)}`); });
+      return p.evaluate(() => [...document.querySelectorAll('table tbody tr')].map(tr => {
+        const c = [...tr.querySelectorAll('td')].map(td => td.innerText.trim());
+        const a = tr.querySelector('a[href^="/guild/"]');
+        return { rank: Number(c[0]), name: a ? decodeURIComponent(a.getAttribute('href').split('/').pop()) : c[1],
+                 server: c[2], members: Number(c[3]), avgCpText: c[4], totalCpText: c[5] };
+      }));
+    });
+    if (!rows.length) break;
+    found = rows.find(r => r.name === hit.name) || null;
+  }
+  if (!found) throw new Error(`could not find "${hit.name}" anywhere in the ${SERVER} ranking list`);
+  guilds.push({ ...found, extra: true });
+  console.error(`extra: ${hit.name} at CP rank ${found.rank}`);
+}
 
 // ---- 2. baseline curves from the score-analysis page ----
 const baselines = await retry('baselines', TRIES, async () => {

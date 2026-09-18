@@ -64,6 +64,10 @@
   .grow .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.25; }
   .grow .nsub { display:block; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
   i.up, i.dn { font-style:normal; font-size:.88em; }
+  .added { font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--accent);
+    border:1px solid currentColor; border-radius:4px; padding:0 4px; margin-left:4px;
+    vertical-align:1px; font-weight:600; }
+  .added-star { color:var(--accent); }
   i.up { color:var(--accent); } i.dn { color:var(--accent-2); }
   .grow .gp { font-size:12px; font-variant-numeric:tabular-nums; padding:1px 6px;
     border-radius:5px; border:1px solid var(--ring); }
@@ -223,7 +227,7 @@ const link = (href, inner, cls, title) =>
 // ---------- unpack ----------
 // member tuple: [name, job, level, cp, tier4, avgF, avgC, sprite, [ [score,cp,dateIdx,vF,vC]|null x5 ]]
 const unpack = list => list.map(g => ({
-  rank:g.r, name:g.n, count:g.mc, emblem:g.e,
+  rank:g.r, extra:!!g.x, name:g.n, count:g.mc, emblem:g.e,
   totalCp:g.tcp, totalCpText:g.tcpt, avgCp:g.acp,
   conquestRank:g.cqr, conquestTotal:g.cqt, modeRank:g.mr, modeTotal:g.mt,
   avgF:g.af, avgC:g.ac, modeAvg:g.ma,
@@ -280,7 +284,7 @@ function renderPicker(){
     const d = g.rank - g.conquestRank;
     row.innerHTML = `<input type="checkbox" ${S.sel.has(g.name)?'checked':''}>` +
       `<span class="rk">${g.rank}</span>` +
-      `<span class="nm">${esc(g.name)}` +
+      `<span class="nm">${esc(g.name)}${g.extra?' <span class="added" title="Added by request, outside the top 50">added</span>':''}` +
         `<span class="nsub" title="Conquest rank among these 50, by total guild conquest score">` +
         `CQ #${g.conquestRank}${d?` <i class="${d>0?'up':'dn'}">${d>0?'▲':'▼'}${Math.abs(d)}</i>`:''}</span></span>` +
       `<span class="gp" style="background:${fill(v)}">${pct(v)}</span>`;
@@ -304,7 +308,7 @@ function renderChips(){
   if(sel.length === 0 || sel.length > 12) return;
   for(const g of sel){
     const c = el('span','chip',
-      `#${g.rank} ${link(guildUrl(g.name), esc(g.name), 'lk', `Open ${g.name} in MapleIdle score analysis`)} ` +
+      `#${g.rank}${g.extra?'*':''} ${link(guildUrl(g.name), esc(g.name), 'lk', `Open ${g.name} in MapleIdle score analysis`)} ` +
       `<button aria-label="Remove ${esc(g.name)}">×</button>`);
     c.querySelector('button').onclick = () => { S.sel.delete(g.name); render(); };
     box.appendChild(c);
@@ -323,7 +327,8 @@ function renderTiles(){
   const chip = v => v==null ? '' : `<span class="pct" style="background:${fill(v)};min-width:0;font-size:11px;padding:2px 6px">${pct(v)}</span>`;
   const one = sel.length === 1 ? sel[0] : null;
   const tiles = one ? [
-    ['CP rank', '#' + one.rank, `of 50 · ${one.members.length} members`],
+    ['CP rank', '#' + one.rank,
+      (one.extra ? `outside the top ${CUR.top} · ` : `of ${CUR.top} · `) + `${one.members.length} members`],
     ['Total CP', big(one.totalCp), `avg ${big(one.totalCp / one.members.length)} per member`],
     ['Conquest rank', '#' + one.conquestRank, `total ${big(one.conquestTotal)}` +
       (one.rank - one.conquestRank ? ` · ${one.conquestRank < one.rank ? '▲' : '▼'}${Math.abs(one.rank - one.conquestRank)} vs CP` : ' · same as CP')],
@@ -462,7 +467,7 @@ function guildTable(sel){
   const tb = el('tbody');
   for(const g of sortGuilds(sel)){
     const tr = el('tr');
-    tr.appendChild(el('td','num', g.rank));
+    tr.appendChild(el('td','num', `${g.rank}${g.extra?'<span class="added-star" title="Outside the top 50, added by request">*</span>':''}`));
     tr.appendChild(el('td','lft', link(guildUrl(g.name), esc(g.name), 'lk', `Open ${g.name} in MapleIdle score analysis`)));
     tr.appendChild(el('td','num', g.members.length));
     tr.appendChild(el('td','num', big(g.totalCp)));
@@ -637,8 +642,10 @@ SRV.forEach(s => {
 function setHeader(){
   document.getElementById('pagetitle').textContent = `${CUR.label} — Guild Score Analysis`;
   const totalMembers = GUILDS.reduce((a,g)=>a+g.members.length,0);
+  const added = GUILDS.length - CUR.top;
   document.getElementById('subtitle').textContent =
-    `Top 50 guilds by total CP · ${totalMembers} members · scores measured against MapleIdle.gg's ` +
+    `Top ${CUR.top} guilds by total CP${added > 0 ? ` plus ${added} added by request` : ''} · ` +
+    `${totalMembers} members · scores measured against MapleIdle.gg's ` +
     `CP-fitted baseline · pulled ${CUR.scrapedAt.slice(0,10)}`;
   document.getElementById('snapline').textContent =
     `Snapshot dates per content: ${MODES.map((m,i)=>`${LAB[i]} ${CUR.snap[i]}`).join(' · ')}.`;
@@ -649,7 +656,7 @@ document.getElementById('helptext').innerHTML =
   `<p>MapleIdle fits a power curve to every ranked player's score against their combat power, separately for each content and each job tier (4th job at Lv 100+, 3rd job below). The baseline expected score is <code>exp(a + b · ln(CP))</code>.</p>` +
   `<p><b>vs all classes</b> is how far a member's best score sits above or below that curve, using the CP they had when they set the score rather than their current CP. <b>vs same class</b> divides that out by the class's own average offset, so a Bishop is judged against Bishops.</p>` +
   `<p><b>Average</b> is the unweighted mean of a member's five content percentages. A guild's average is the mean of its members' averages. Members with no recorded score in a content are skipped rather than counted as zero.</p>` +
-  `<p><b>CP #</b> is the guild's rank by total combat power, which is how MapleIdle orders its guild list. <b>CQ #</b> is a rank this page derives: guilds sorted by the sum of their members' best Guild Conquest scores. MapleIdle publishes no guild-level conquest ranking, so this is a rank <i>within these 50 guilds only</i>, and like total CP it rewards larger rosters. A guild sitting well above its CP rank on conquest is punching above its combat power.</p>` +
+  `<p><b>CP #</b> is the guild's rank by total combat power, which is how MapleIdle orders its guild list. <b>CQ #</b> is a rank this page derives: guilds sorted by the sum of their members' best Guild Conquest scores. MapleIdle publishes no guild-level conquest ranking, so this is a rank <i>within the guilds on this page only</i>, and like total CP it rewards larger rosters. A guild marked <b>added</b> sits outside the top ${CUR.top} by CP and was included by request; its CP # is its real position on the full server ladder. A guild sitting well above its CP rank on conquest is punching above its combat power.</p>` +
   `<p id="snapline"></p>`;
 document.getElementById('foot').innerHTML =
   `Data from mapleidle.gg (unofficial MapleStory Idle RPG fan site, not affiliated with Nexon). ` +

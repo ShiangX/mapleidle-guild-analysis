@@ -5,7 +5,7 @@ const MODES = sets[0].modes;
 const dates = []; const dIdx = d => d == null ? -1 : (dates.includes(d) ? dates.indexOf(d) : (dates.push(d)-1));
 const sig = (n, p=6) => n == null ? null : Number(n.toPrecision(p));
 const packGuilds = ds => ds.guilds.map(g => ({
-  r: g.rank, n: g.name, mc: g.membersCount, e: g.emblemHash,
+  r: g.rank, x: g.extra ? 1 : 0, n: g.name, mc: g.membersCount, e: g.emblemHash,
   tcp: sig(g.totalCp, 6), tcpt: g.totalCpText, acp: g.avgCpText,
   cqr: g.conquestRank, cqt: sig(g.conquestTotal, 6),
   mr: MODES.map(m => g[m + 'Rank']), mt: MODES.map(m => sig(g.modeTotal[m], 6)),
@@ -24,9 +24,12 @@ const out = {
   servers: sets.map(ds => ({
     id: ds.server, label: ds.server.replace(/^(\w)(\w*)-/, (_,a,b) => a.toUpperCase()+b+' '),
     region: ds.region, worldId: ds.worldId, scrapedAt: ds.scrapedAt,
+    top: ds.guilds.filter(g => !g.extra).length,
     snap: MODES.map(m => ds.snapshotDates[m]), guilds: packGuilds(ds),
   })),
 };
 fs.writeFileSync('packed.json', JSON.stringify(out));
 console.log('packed', fs.statSync('packed.json').size, 'bytes');
-out.servers.forEach(s => console.log(' ', s.label, '| guilds', s.guilds.length, '| members', s.guilds.reduce((a,g)=>a+g.m.length,0)));
+out.servers.forEach(s => console.log(' ', s.label, '| guilds', s.guilds.length,
+  `(top ${s.top}${s.guilds.length > s.top ? ` + ${s.guilds.length - s.top} added` : ''})`,
+  '| members', s.guilds.reduce((a,g)=>a+g.m.length,0)));

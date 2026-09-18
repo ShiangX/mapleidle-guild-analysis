@@ -9,7 +9,8 @@ compared member by member.
 Or open `index.html` locally. Both servers are embedded, no server
 needed. Switch between them with the Bera 1 / Bera 2 toggle.
 
-Covers 100 guilds and 2,631 members.
+Covers 102 guilds and 2,730 members: the top 50 on each server, plus Freaky and Zerua on
+Bera 1 by request.
 
 ## Pipeline
 
@@ -22,7 +23,13 @@ Covers 100 guilds and 2,631 members.
       fs.readFileSync("template.html","utf8").replace("__DATA__",
       fs.readFileSync("packed.json","utf8").replace(/<\//g,"<\\/")))'
 
-`TOP=50` controls depth; any world id works (`SERVER=aquila-3`).
+`TOP=50` controls depth; any world id works (`SERVER=aquila-3`). `EXTRA` pulls in named guilds
+from outside the top N, with their real CP rank looked up from the ranking list:
+
+    SERVER=bera-1 EXTRA=Freaky,Zerua node scrape.mjs
+
+Added guilds are badged in the picker and starred in the comparison table, so their CP rank is
+never mistaken for a top-50 position. Bera 1 currently carries Freaky (#75) and Zerua (#95).
 
 Scraping needs a real browser — mapleidle.gg sits behind a Vercel JS challenge that blocks
 curl. The scripts drive Playwright's bundled Chrome for Testing (already in
