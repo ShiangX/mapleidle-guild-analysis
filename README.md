@@ -4,7 +4,9 @@ Scrapes the top 50 guilds on each server from mapleidle.gg, pulls every member's
 all five contents, and reproduces the site's own "vs baseline" percentages so guilds can be
 compared member by member.
 
-**Open `index.html`** in a browser. Both servers are embedded, no server
+**Live: https://shiangx.github.io/mapleidle-guild-analysis/**
+
+Or open `index.html` locally. Both servers are embedded, no server
 needed. Switch between them with the Bera 1 / Bera 2 toggle.
 
 Covers 100 guilds and 2,631 members.
