@@ -1,15 +1,15 @@
 {
   "name": "mapleidle-guild-analysis",
   "version": "1.0.0",
-  "description": "Top 50 guild score analysis for Bera 1 and Bera 2, built from mapleidle.gg",
+  "description": "Top 50 guild score analysis for Bera (merged Bera 1 + 2), built from mapleidle.gg",
   "private": true,
   "license": "MIT",
   "type": "commonjs",
   "scripts": {
-    "scrape": "SERVER=bera-1 EXTRA=Freaky,Zerua node scrape.mjs && SERVER=bera-2 node scrape.mjs",
-    "build": "SERVER=bera-1 node build.mjs && SERVER=bera-2 node build.mjs && node pack.mjs && node make.mjs",
+    "scrape": "SERVER=bera-1 EXTRA=Freaky,Zerua ADD_MEMBERS=Grace:Devinos node scrape.mjs",
+    "build": "SERVER=bera-1 node build.mjs && node pack.mjs && node make.mjs",
     "check": "node check-build.mjs",
-    "verify": "SERVER=bera-1 GUILDS=Snooze,Grace,Freaky,Zerua node verify2.mjs && SERVER=bera-2 GUILDS=Westhelm,Degens,Riot node verify2.mjs && node verify3.mjs",
+    "verify": "SERVER=bera-1 GUILDS=Westhelm,Grace,Freaky node verify2.mjs && node verify3.mjs",
     "refresh": "npm run scrape && npm run build && npm run verify && npm run check"
   },
   "dependencies": {

@@ -64,20 +64,11 @@ jobs:
           timeout_minutes: 15
           max_attempts: 3
           retry_wait_seconds: 120
-          command: SERVER=bera-1 TOP=$TOP EXTRA=Freaky,Zerua node scrape.mjs
-
-      - name: Scrape Bera 2
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          retry_wait_seconds: 120
-          command: SERVER=bera-2 TOP=$TOP node scrape.mjs
+          command: SERVER=bera-1 TOP=$TOP EXTRA=Freaky,Zerua ADD_MEMBERS=Grace:Devinos node scrape.mjs
 
       - name: Build page
         run: |
           SERVER=bera-1 node build.mjs
-          SERVER=bera-2 node build.mjs
           node pack.mjs
           node make.mjs
 
@@ -91,8 +82,7 @@ jobs:
           max_attempts: 2
           retry_wait_seconds: 60
           command: |
-            SERVER=bera-1 GUILDS=Snooze,Grace,Freaky node verify2.mjs
-            SERVER=bera-2 GUILDS=Westhelm,Degens node verify2.mjs
+            SERVER=bera-1 GUILDS=Westhelm,Grace,Freaky node verify2.mjs
 
       - name: Sanity-check the built page
         run: node check-build.mjs

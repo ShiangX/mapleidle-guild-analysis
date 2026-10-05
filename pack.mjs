@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const SERVERS = (process.env.SERVERS || 'bera-1,bera-2').split(',');
+const SERVERS = (process.env.SERVERS || 'bera-1').split(',');
 const sets = SERVERS.map(s => JSON.parse(fs.readFileSync(`dataset-${s}.json`,'utf8')));
 const MODES = sets[0].modes;
 const dates = []; const dIdx = d => d == null ? -1 : (dates.includes(d) ? dates.indexOf(d) : (dates.push(d)-1));
@@ -12,7 +12,8 @@ const packGuilds = ds => ds.guilds.map(g => ({
   af: g.guildAvgVsField, ac: g.guildAvgVsClass, ma: MODES.map(m => g.modeAvgVsField[m]),
   m: g.members.map(x => [ x.name, x.job, x.level, sig(x.cp,5), x.tier === 'fourth' ? 1 : 0,
       x.avgVsField, x.avgVsClass, (x.spriteUrl||'').replace('https://cdn.mapleidle.gg/',''),
-      MODES.map(k => { const d = x.modes[k]; return d ? [sig(d.score,5), sig(d.cp,5), dIdx(d.date), d.vsField, d.vsClass] : null; }) ])
+      MODES.map(k => { const d = x.modes[k]; return d ? [sig(d.score,5), sig(d.cp,5), dIdx(d.date), d.vsField, d.vsClass] : null; }),
+      x.pending ? 1 : 0 ])
 }));
 const SLUGS = { conquest:'conquest', worldBoss:'world_boss', guildWar:'guild_war',
   guildBossBattle:'guild_boss_battle', trainingGround:'training_ground' };

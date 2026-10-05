@@ -1,8 +1,9 @@
 // Single place that knows how to get a browser that clears mapleidle.gg's Vercel challenge.
 //
-// The bundled headless shell is not enough — the full Chromium build is what passes, so every
-// caller launches with channel:'chromium'. CHROME_PATH overrides the binary if you need to
-// point at a system Chrome.
+// Since 2026-10-05 the checkpoint rejects Playwright's bundled Chromium in headless mode while
+// the installed Google Chrome passes headless in about three seconds, so that is the default.
+// BROWSER_CHANNEL=chromium falls back to the bundled build (what CI installs), HEADED=1 opens
+// a real window, and CHROME_PATH points at an explicit binary.
 import { chromium } from 'playwright';
 
 export const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
@@ -10,8 +11,8 @@ export const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/5
 
 export function launch(opts = {}) {
   return chromium.launch({
-    headless: true,
-    channel: 'chromium',
+    headless: !process.env.HEADED,
+    channel: process.env.BROWSER_CHANNEL || 'chrome',
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
     ...opts,
   });

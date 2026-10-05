@@ -11,6 +11,11 @@ const TRIES = Number(process.env.TRIES || 4);
 // Guilds to include beyond the top N, by name. Their real CP rank is looked up from the
 // ranking list so they are not pretending to be top-50.
 const EXTRA = (process.env.EXTRA || '').split(',').map(s => s.trim()).filter(Boolean);
+// Members to add to a guild ahead of the site noticing, as Guild:Name pairs. mapleidle snapshots
+// once a day, so a player who joined this morning is still listed under their old guild until
+// tomorrow. The row is flagged pending and drops out on its own once the real roster has them.
+const ADD_MEMBERS = (process.env.ADD_MEMBERS || '').split(',').map(s => s.trim()).filter(Boolean)
+  .map(s => { const [guild, name] = s.split(':'); return { guild, name }; });
 
 const b = await launch();
 const p = await b.newPage();
@@ -120,6 +125,27 @@ for (const g of guilds) {
   raw.push({ ...g, data });
   console.error(`ok ${g.rank} ${g.name} (${data.members.length} members)`);
   await p.waitForTimeout(250);
+}
+// ---- 3b. pending members ----
+for (const { guild, name } of ADD_MEMBERS) {
+  const g = raw.find(x => x.name.toLowerCase() === guild.toLowerCase());
+  if (!g) throw new Error(`ADD_MEMBERS: guild "${guild}" is not in this scrape`);
+  if (g.data.members.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+    console.error(`pending ${name}: already on ${g.name}'s roster, nothing to add`);
+    continue;
+  }
+  const c = await retry(`character ${name}`, TRIES, async () => {
+    const r = await p.evaluate(async u => { const x = await fetch(u); return { status: x.status, body: x.ok ? await x.json() : null }; },
+      `/api/score-analysis/character?region=${encodeURIComponent(REGION)}&world=${WORLD}&name=${encodeURIComponent(name)}`);
+    if (r.status !== 200 || !r.body?.name) throw new Error(`HTTP ${r.status}`);
+    return r.body;
+  });
+  // the character endpoint puts the five contents at top level; the guild endpoint nests them under `best`
+  const MODES = ['conquest', 'worldBoss', 'guildWar', 'guildBossBattle', 'trainingGround'];
+  g.data.members.push({ accountId: `pending:${c.name}`, name: c.name, job: c.job, level: c.level, cp: c.cp,
+    spriteUrl: null, pending: true, best: Object.fromEntries(MODES.map(k => [k, c[k] ?? null])) });
+  g.data.membersCount += 1;
+  console.error(`pending ${c.name} added to ${g.name} (${c.job} Lv ${c.level}, site still lists them elsewhere)`);
 }
 await b.close();
 

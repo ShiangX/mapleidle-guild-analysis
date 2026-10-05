@@ -4,10 +4,11 @@ import { launch } from './browser.mjs';
 import fs from 'node:fs';
 const b = await launch();
 const p = await b.newPage();
-for (const [server, names] of [['bera-2',['Westhelm','Degens','Riot']], ['bera-1',['Snooze','Casino','Petal']]]) {
+for (const [server, names] of [['bera-1',['Westhelm','Grace','Freaky']]]) {
   const ds = JSON.parse(fs.readFileSync(`dataset-${server}.json`,'utf8'));
   for (const n of names) {
     const g = ds.guilds.find(x => x.name === n);
+    if (!g) { console.log(`${server} ${n.padEnd(10)} not in dataset, skipping`); continue; }
     await p.goto(`https://mapleidle.gg/guild/${ds.region}/${encodeURIComponent(n)}`, { waitUntil:'domcontentloaded' });
     await p.waitForTimeout(1200);
     const site = await p.evaluate(() => {
@@ -21,7 +22,8 @@ for (const [server, names] of [['bera-2',['Westhelm','Degens','Riot']], ['bera-1
       if (v>=u){ const hi=Math.floor(v/u); const rem=v-hi*u; const nx=U[k+1];
         const lo = nx ? Math.floor(rem/nx[0]) : 0;
         return lo>0 ? `${hi}${s} ${lo}${nx[1]}` : `${hi}${s}`; } } return String(Math.round(v)); };
-    const mine = fmt2(g.totalCp);
+    // pending members are ours, not the site's yet; compare the roster the site can see
+    const mine = fmt2(g.members.filter(m => !m.pending).reduce((s, m) => s + (m.cp ?? 0), 0));
     console.log(`${server} ${n.padEnd(10)} total CP  site="${site}"  mine="${mine}"  ${site===mine?'MATCH':'>>> DIFF'}`);
   }
 }

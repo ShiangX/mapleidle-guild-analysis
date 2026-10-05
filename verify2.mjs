@@ -16,7 +16,7 @@ for (const gname of GUILDS) {
   await p.goto(`https://mapleidle.gg/tools/score-analysis?kind=guild&region=${ds.region}&name=${encodeURIComponent(gname)}`,
     { waitUntil: 'domcontentloaded' });
   try { await p.waitForFunction(() => [...document.querySelectorAll('table')]
-          .some(t => /vs all/i.test(t.querySelector('thead')?.innerText || '')), { timeout: 20000 }); }
+          .some(t => /vs all/i.test(t.querySelector('thead')?.innerText || '')), { timeout: 45000 }); }
   catch { bad.push(`${gname}: guild card never rendered`); continue; }
 
   const mine = ds.guilds.find(g => g.name === gname);

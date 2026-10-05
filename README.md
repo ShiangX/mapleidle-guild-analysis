@@ -1,24 +1,21 @@
-# MapleIdle guild score analysis — Bera 1 & Bera 2
+# MapleIdle guild score analysis — Bera 1
 
-Scrapes the top 50 guilds on each server from mapleidle.gg, pulls every member's best score in
-all five contents, and reproduces the site's own "vs baseline" percentages so guilds can be
-compared member by member.
+Scrapes the top 50 guilds on Bera 1 from mapleidle.gg, pulls every member's best score in all
+five contents, and reproduces the site's own "vs baseline" percentages so guilds can be compared
+member by member.
 
 **Live: https://shiangx.github.io/mapleidle-guild-analysis/**
 
-Or open `index.html` locally. Both servers are embedded, no server
-needed. Switch between them with the Bera 1 / Bera 2 toggle.
+Or open `index.html` locally. Everything is embedded, no server needed.
 
-Covers 102 guilds and 2,730 members: the top 50 on each server, plus Freaky and Zerua on
-Bera 1 by request.
+Bera 1 and Bera 2 merged in early October 2026; `server=bera-1` on the site is now the combined
+world, so the page tracks that alone. Covers the top 50 plus Freaky and Zerua by request.
 
 ## Pipeline
 
     SERVER=bera-1 node scrape.mjs    # guild list + /api/score-analysis/guild each → raw-bera-1.json
-    SERVER=bera-2 node scrape.mjs
     SERVER=bera-1 node build.mjs     # baseline math + derived ranks → dataset-bera-1.json
-    SERVER=bera-2 node build.mjs
-    node pack.mjs                    # combines both servers → packed.json
+    node pack.mjs                    # compacts for embedding → packed.json
     node -e 'const fs=require("fs");fs.writeFileSync("index.html",
       fs.readFileSync("template.html","utf8").replace("__DATA__",
       fs.readFileSync("packed.json","utf8").replace(/<\//g,"<\\/")))'
@@ -29,11 +26,23 @@ from outside the top N, with their real CP rank looked up from the ranking list:
     SERVER=bera-1 EXTRA=Freaky,Zerua node scrape.mjs
 
 Added guilds are badged in the picker and starred in the comparison table, so their CP rank is
-never mistaken for a top-50 position. Bera 1 currently carries Freaky (#75) and Zerua (#95).
+never mistaken for a top-50 position.
+
+`ADD_MEMBERS` puts a player onto a guild's roster before the site notices. mapleidle snapshots
+once a day, so someone who joined this morning is still listed under their old guild until
+tomorrow. Their scores come from the character endpoint and the row is badged **new**; once the
+real roster includes them the override is a no-op.
+
+    SERVER=bera-1 EXTRA=Freaky,Zerua ADD_MEMBERS=Grace:Devinos node scrape.mjs
+
+`leaders.mjs` pulls each guild's marked leader off its guild page, which the score API does not
+carry: `GUILDS=Grace,Freaky node leaders.mjs`.
 
 Scraping needs a real browser — mapleidle.gg sits behind a Vercel JS challenge that blocks
-curl. The scripts drive Playwright's bundled Chrome for Testing (already in
-`~/Library/Caches/ms-playwright`), which passes it.
+curl. The scripts drive the installed Google Chrome headless through Playwright, which passes
+it in a few seconds. Playwright's bundled Chromium stopped passing in headless mode on
+2026-10-05; `HEADED=1` opens a real window if the headless path ever gets blocked again, and
+`BROWSER_CHANNEL=chromium` selects the bundled build.
 
 ## How the percentages work
 
@@ -85,10 +94,9 @@ schedule commented out; it would work unchanged on a self-hosted runner.
 `build.mjs` is a direct port of the site's client-side function. `verify2.mjs` re-renders
 guilds on the live site and diffs every cell:
 
-    SERVER=bera-2 GUILDS=Westhelm,Degens,Riot node verify2.mjs   # 397 cells, 0 mismatches
-    SERVER=bera-1 GUILDS=Snooze,Casino,Petal node verify2.mjs    # 328 cells, 0 mismatches
+    SERVER=bera-1 GUILDS=Westhelm,Grace,Freaky node verify2.mjs
 
-`verify3.mjs` checks derived total CP against each guild's page — 6 of 6 exact.
+`verify3.mjs` checks derived total CP against each guild's page.
 
 ## Deep links
 
@@ -106,10 +114,10 @@ its page does read these params:
 
 | File | What it is |
 |---|---|
-| `index.html` | The deliverable. Server toggle, guild picker, sortable guild + member tables, diverging bars, CSV export |
-| `raw-<server>.json` | Untouched API responses plus the baseline curves |
-| `dataset-<server>.json` | Computed percentages and guild totals, readable key names |
-| `packed.json` | Both servers, positional arrays, embedded into the HTML |
+| `index.html` | The deliverable. Guild picker, sortable guild + member tables, diverging bars, CSV export |
+| `raw-bera-1.json` | Untouched API responses plus the baseline curves |
+| `dataset-bera-1.json` | Computed percentages and guild totals, readable key names |
+| `packed.json` | Positional arrays, embedded into the HTML |
 | `template.html` | The artifact with a `__DATA__` placeholder |
 
 Data is from mapleidle.gg, an unofficial fan site not affiliated with Nexon. Snapshot dates

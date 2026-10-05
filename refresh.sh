@@ -9,18 +9,15 @@ cd "$(dirname "$0")"
 log() { printf '\n=== %s ===\n' "$1"; }
 
 log "scrape"
-SERVER=bera-1 EXTRA=Freaky,Zerua node scrape.mjs
-SERVER=bera-2 node scrape.mjs
+SERVER=bera-1 EXTRA=Freaky,Zerua ADD_MEMBERS=Grace:Devinos node scrape.mjs
 
 log "build"
 SERVER=bera-1 node build.mjs
-SERVER=bera-2 node build.mjs
 node pack.mjs
 node make.mjs
 
 log "verify against the live site"
-SERVER=bera-1 GUILDS=Snooze,Grace,Freaky node verify2.mjs
-SERVER=bera-2 GUILDS=Westhelm,Degens node verify2.mjs
+SERVER=bera-1 GUILDS=Westhelm,Grace,Freaky node verify2.mjs
 
 log "check the built page"
 node check-build.mjs

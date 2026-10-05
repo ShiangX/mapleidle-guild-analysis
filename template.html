@@ -225,7 +225,7 @@ const link = (href, inner, cls, title) =>
   `<a class="${cls||''}" href="${href}" target="_blank" rel="noopener"${title?` title="${esc(title)}"`:''}>${inner}</a>`;
 
 // ---------- unpack ----------
-// member tuple: [name, job, level, cp, tier4, avgF, avgC, sprite, [ [score,cp,dateIdx,vF,vC]|null x5 ]]
+// member tuple: [name, job, level, cp, tier4, avgF, avgC, sprite, [ [score,cp,dateIdx,vF,vC]|null x5 ], pending]
 const unpack = list => list.map(g => ({
   rank:g.r, extra:!!g.x, name:g.n, count:g.mc, emblem:g.e,
   totalCp:g.tcp, totalCpText:g.tcpt, avgCp:g.acp,
@@ -233,7 +233,7 @@ const unpack = list => list.map(g => ({
   avgF:g.af, avgC:g.ac, modeAvg:g.ma,
   members: g.m.map(m => ({
     name:m[0], job:m[1], level:m[2], cp:m[3], tier:m[4]?'4th':'3rd',
-    avgF:m[5], avgC:m[6], sprite:m[7],
+    avgF:m[5], avgC:m[6], sprite:m[7], pending: !!m[9],
     modes: m[8].map(x => x ? { score:x[0], cp:x[1], date:D.dates[x[2]], vF:x[3], vC:x[4] } : null)
   }))
 }));
@@ -430,7 +430,8 @@ function memberTable(sel){
     const tr = el('tr');
     tr.appendChild(el('td', null,
       `<div class="mname">${link(charUrl(m.name), esc(m.name), 'lk', `Open ${m.name} in MapleIdle score analysis`)}</div>` +
-      `<div class="msub">${esc(m.job||'—')} · ${m.tier} · ${link(profileUrl(m.name),'profile','lk-sub',`Open ${m.name}'s character page`)}</div>`));
+      `<div class="msub">${esc(m.job||'—')} · ${m.tier} · ${link(profileUrl(m.name),'profile','lk-sub',`Open ${m.name}'s character page`)}` +
+      `${m.pending?' <span class="added" title="Joined after the site\'s last snapshot; scores pulled from their character page">new</span>':''}</div>`));
     if(multi) tr.appendChild(el('td','lft',
       `<span class="msub">#${m.__r}</span> ${link(guildUrl(m.__g), esc(m.__g), 'lk', `Open ${m.__g} in MapleIdle score analysis`)}`));
     tr.appendChild(el('td','num', m.level));

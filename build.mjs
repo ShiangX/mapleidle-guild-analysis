@@ -32,7 +32,7 @@ const guilds = raw.guilds.filter(g => g.data).map(g => {
     }
     const fields = MODES.map(k => modes[k]?.vsField).filter(v => v != null);
     const classes = MODES.map(k => modes[k]?.vsClass).filter(v => v != null);
-    return { accountId: m.accountId, name: m.name, job: m.job, level: m.level, cp: m.cp, tier,
+    return { accountId: m.accountId, name: m.name, job: m.job, level: m.level, cp: m.cp, tier, pending: !!m.pending,
              spriteUrl: m.spriteUrl, modes,
              avgVsField: fields.length ? r2(fields.reduce((a, b) => a + b, 0) / fields.length) : null,
              avgVsClass: classes.length ? r2(classes.reduce((a, b) => a + b, 0) / classes.length) : null,
